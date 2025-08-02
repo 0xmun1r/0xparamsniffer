@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+#
+# A tool for discovering web parameters.
+#
+# This script is designed to be executed directly from the terminal
+# as a standalone command.
+
+import argparse
+import requests
+from urllib.parse import urlparse, urlunparse
+import sys
+
+# A more extensive internal wordlist
+INTERNAL_WORDLIST = [
+    "id", "q", "user", "name", "token", "search", "category",
+    "page", "action", "lang", "redirect", "sort", "view",
+    "item", "product", "tag", "source", "blog", "post",
+    "article", "comment", "query", "email", "username",
+    "password", "session_id", "limit", "offset", "start",
+    "end", "size", "key", "secret", "api_key", "version",
+    "mode", "filter", "status", "date", "from", "to",
+    "type", "format", "callback", "jsonp", "data", "file",
+    "path", "folder", "directory"
+]
+
+def check_parameter(target_url, parameter_name, verbose=False):
+    """
+    Checks if a given parameter is valid by comparing responses.
+    Returns the full URL if valid, otherwise None.
+    """
+    if verbose:
+        print(f"[*] Testing parameter: {parameter_name}")
+    
+    try:
+        base_response = requests.get(target_url, timeout=10)
+    except requests.exceptions.RequestException as e:
+        print(f"[-] Error getting base response from {target_url}: {e}")
+        return None
+
+    test_value = "test_value_123"
+    parsed_url = urlparse(target_url)
+    
+    if parsed_url.query:
+        new_query = f"{parsed_url.query}&{parameter_name}={test_value}"
+    else:
+        new_query = f"{parameter_name}={test_value}"
+    
+    test_url = urlunparse(parsed_url._replace(query=new_query))
+
+    try:
+        test_response = requests.get(test_url, timeout=10)
+    except requests.exceptions.RequestException as e:
+        if verbose:
+            print(f"[-] Error making test request to {test_url}: {e}")
+        return None
+
+    if (len(test_response.text) != len(base_response.text) or
+        test_response.status_code != base_response.status_code):
+        if verbose:
+            print(f"[+] Found a difference for parameter: {parameter_name}")
+        return test_url
+    
+    if verbose:
+        print(f"[-] No difference found for parameter: {parameter_name}")
+        
+    return None
+
+def main():
+    # Banner with version and author name
+    banner = """
+#!/usr/bin/env python3
+#
+# A tool for discovering web parameters.
+#
+# This script is designed to be executed directly from the terminal
+# as a standalone command.
+
+import argparse
+import requests
+from urllib.parse import urlparse, urlunparse
+import sys
+
+# A more extensive internal wordlist
+INTERNAL_WORDLIST = [
+    "id", "q", "user", "name", "token", "search", "category",
+    "page", "action", "lang", "redirect", "sort", "view",
+    "item", "product", "tag", "source", "blog", "post",
+    "article", "comment", "query", "email", "username",
+    "password", "session_id", "limit", "offset", "start",
+    "end", "size", "key", "secret", "api_key", "version",
+    "mode", "filter", "status", "date", "from", "to",
+    "type", "format", "callback", "jsonp", "data", "file",
+    "path", "folder", "directory"
+]
+
+def check_parameter(target_url, parameter_name, verbose=False):
+    """
+    Checks if a given parameter is valid by comparing responses.
+    Returns the full URL if valid, otherwise None.
+    """
+    if verbose:
+        print(f"[*] Testing parameter: {parameter_name}")
+    
+    try:
+        base_response = requests.get(target_url, timeout=10)
+    except requests.exceptions.RequestException as e:
+        print(f"[-] Error getting base response from {target_url}: {e}")
+        return None
+
+    test_value = "test_value_123"
+    parsed_url = urlparse(target_url)
+    
+    if parsed_url.query:
+        new_query = f"{parsed_url.query}&{parameter_name}={test_value}"
+    else:
+        new_query = f"{parameter_name}={test_value}"
+    
+    test_url = urlunparse(parsed_url._replace(query=new_query))
+
+    try:
+        test_response = requests.get(test_url, timeout=10)
+    except requests.exceptions.RequestException as e:
+        if verbose:
+            print(f"[-] Error making test request to {test_url}: {e}")
+        return None
+
+    if (len(test_response.text) != len(base_response.text) or
+        test_response.status_code != base_response.status_code):
+        if verbose:
+            print(f"[+] Found a difference for parameter: {parameter_name}")
+        return test_url
+    
+    if verbose:
+        print(f"[-] No difference found for parameter: {parameter_name}")
+        
+    return None
+
+def main():
+    # Banner with version and author name
+    banner = """
+
+_______                                                   .__  _____  _____             
+\   _  \ ___  ______________ _______  _____   ______ ____ |__|/ ____\/ ____\___________ 
+/  /_\  \\  \/  /\____ \__  \\_  __ \/     \ /  ___//    \|  \   __\\   __\/ __ \_  __ \
+\  \_/   \>    < |  |_> > __ \|  | \/  Y Y  \\___ \|   |  \  ||  |   |  | \  ___/|  | \/
+ \_____  /__/\_ \|   __(____  /__|  |__|_|  /____  >___|  /__||__|   |__|  \___  >__|   
+       \/      \/|__|       \/            \/     \/     \/                     \/       
+
+                                       
+     -=-=-=-= oxparamsniffer v0.0.1 by oxmunir =-=-=-=-
+
+"""
+    print(banner)
+
+    parser = argparse.ArgumentParser(
+        description="oxparamsniffer: A tool for discovering web parameters.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        "-u", "--url", required=True,
+        help="The target URL (e.g., https://example.com/search)"
+    )
+    parser.add_argument(
+        "-w", "--wordlist",
+        help=(
+            "Path to a custom wordlist file of parameter names.\n"
+            "If not provided, an internal wordlist will be used."
+        )
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true",
+        help="Enable verbose mode to show all HTTP requests and results."
+    )
+    args = parser.parse_args()
+
+    parameter_list = []
+    if args.wordlist:
+        try:
+            with open(args.wordlist, 'r') as f:
+                parameter_list = [line.strip() for line in f if line.strip()]
+        except FileNotFoundError:
+            print(f"[-] Error: Wordlist file not found at {args.wordlist}")
+            sys.exit(1)
+    else:
+        parameter_list = INTERNAL_WORDLIST
+    
+    print(f"[+] Starting parameter discovery for {args.url}")
+    source_info = "custom wordlist" if args.wordlist else "internal wordlist"
+    print(f"[+] Using a {source_info} with {len(parameter_list)} parameters\n")
+
+    valid_parameters = []
+    for param in parameter_list:
+        found_url = check_parameter(args.url, param, args.verbose)
+        if found_url:
+            valid_parameters.append(found_url)
+    
+    print("\n" + "=" * 50)
+    print("Discovery Complete!")
+    print(f"Found {len(valid_parameters)} valid parameters.")
+    for url in valid_parameters:
+        print(f"--> {url} (VALID)")
+        
+    print("\n" + "-" * 50)
+    print("Report of all parameters checked:")
+    for param in parameter_list:
+        found_url = check_parameter(args.url, param)
+        if found_url:
+            print(f"--> {param} (VALID) at {found_url}")
+        else:
+            print(f"--> {param} (NOT FOUND)")
+    print("=" * 50)
+
+if __name__ == "__main__":
+    main()
+                                       
+     -=-=-=-= oxparamsniffer v0.0.1 by oxmunir =-=-=-=-
+
+"""
+    print(banner)
+
+    parser = argparse.ArgumentParser(
+        description="oxparamsniffer: A tool for discovering web parameters.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        "-u", "--url", required=True,
+        help="The target URL (e.g., https://example.com/search)"
+    )
+    parser.add_argument(
+        "-w", "--wordlist",
+        help=(
+            "Path to a custom wordlist file of parameter names.\n"
+            "If not provided, an internal wordlist will be used."
+        )
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true",
+        help="Enable verbose mode to show all HTTP requests and results."
+    )
+    args = parser.parse_args()
+
+    parameter_list = []
+    if args.wordlist:
+        try:
+            with open(args.wordlist, 'r') as f:
+                parameter_list = [line.strip() for line in f if line.strip()]
+        except FileNotFoundError:
+            print(f"[-] Error: Wordlist file not found at {args.wordlist}")
+            sys.exit(1)
+    else:
+        parameter_list = INTERNAL_WORDLIST
+    
+    print(f"[+] Starting parameter discovery for {args.url}")
+    source_info = "custom wordlist" if args.wordlist else "internal wordlist"
+    print(f"[+] Using a {source_info} with {len(parameter_list)} parameters\n")
+
+    valid_parameters = []
+    for param in parameter_list:
+        found_url = check_parameter(args.url, param, args.verbose)
+        if found_url:
+            valid_parameters.append(found_url)
+    
+    print("\n" + "=" * 50)
+    print("Discovery Complete!")
+    print(f"Found {len(valid_parameters)} valid parameters.")
+    for url in valid_parameters:
+        print(f"--> {url} (VALID)")
+        
+    print("\n" + "-" * 50)
+    print("Report of all parameters checked:")
+    for param in parameter_list:
+        found_url = check_parameter(args.url, param)
+        if found_url:
+            print(f"--> {param} (VALID) at {found_url}")
+        else:
+            print(f"--> {param} (NOT FOUND)")
+    print("=" * 50)
+
+if __name__ == "__main__":
+    main()
