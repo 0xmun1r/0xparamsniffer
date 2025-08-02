@@ -29,7 +29,7 @@
 
 ### 🔹 1. Clone the Repository
 ```
-git clone https://github.com/0xmunir/0xparamsniffer.git
+git clone https://github.com/0xmun1r/0xparamsniffer.git
 cd 0xparamsniffer
 ````
 
